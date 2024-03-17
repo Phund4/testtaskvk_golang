@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	env "github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -26,27 +27,39 @@ func (completeQuest *CompleteQuest) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	type completeInfo struct {
 		ClientID int `json:"client_id"`
-		QuestID int `json:"quest_id"`
+		QuestID  int `json:"quest_id"`
 	}
 
-	var complete completeInfo;
+	var complete completeInfo
 
 	err = json.Unmarshal(raw, &complete)
-	if err != nil {
+	if err != nil || !strings.Contains(string(raw), "client_id") || !strings.Contains(string(raw), "quest_id") {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect data\n"))
-		log.Print("Error in unmarshalling complete info: ", err)
+		if err != nil {
+			log.Print("Error in unmarshalling complete info: ", err)
+		} else {
+			log.Print("Error in unmarshalling complete info: ", "incorrect json")
+		}
 		return
 	}
 
-	err = env.Load("./.env");
+	err = env.Load(".env")
+	if err != nil {
+		err = env.Load("../.env") // чтобы работали тесты
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("unexpected error\n"))
+			log.Print("Error in load environments: ", err)
+		}
+	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
 		log.Print("Error in load environments: ", err)
 		return
 	}
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", 
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("USER"), os.Getenv("PASSWORD"), os.Getenv("DBNAME"))
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -59,25 +72,26 @@ func (completeQuest *CompleteQuest) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	query := `select *
 		from complete_quests
-		where client_id = $1 and quest_id = $2`;
-	selectCompletes, err := db.Exec(query, 
-		complete.ClientID, complete.QuestID);
+		where client_id = $1 and quest_id = $2`
+	selectCompletes, err := db.Exec(query,
+		complete.ClientID, complete.QuestID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect values\n"))
 		log.Print("Error in validation data complete_quests: ", err)
 		return
 	}
-	validationResult, _ := selectCompletes.RowsAffected();
+
+	validationResult, _ := selectCompletes.RowsAffected()
 	if validationResult != 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Client already completed this quest\n"))
-		log.Print("Error in complete_quests (client already completed): ", err)
+		log.Print("Error in complete quests (client already completed this quest)")
 		return
 	}
 
 	query = `insert into complete_quests (client_id, quest_id) 
-		values ($1, $2)`;
+		values ($1, $2)`
 	result, err := db.Exec(query,
 		complete.ClientID, complete.QuestID)
 	if err != nil {
@@ -89,9 +103,9 @@ func (completeQuest *CompleteQuest) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	query = `update client 
 		set balance = (select cost from quest where id = $2) + balance 
-		where id = $1`;
+		where id = $1`
 	_, err = db.Exec("update client set balance = (select cost from quest where id = $2) + balance where id = $1",
-		complete.ClientID, complete.QuestID);
+		complete.ClientID, complete.QuestID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect values\n"))

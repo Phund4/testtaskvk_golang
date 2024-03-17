@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	env "github.com/joho/godotenv"
 
@@ -27,21 +28,33 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var client Client
 	err = json.Unmarshal(raw, &client)
-	if err != nil {
+	if err != nil || !strings.Contains(string(raw), "id") {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect data\n"))
-		log.Print("Error in unmarshalling client: ", err)
+		if err != nil {
+			log.Print("Error in unmarshalling client: ", err)
+		} else {
+			log.Print("Error in unmarshalling client: ", "incorrect json")
+		}
 		return
 	}
 
-	err = env.Load("./.env");
+	err = env.Load(".env")
+	if err != nil {
+		err = env.Load("../.env") // чтобы работали тесты
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("unexpected error\n"))
+			log.Print("Error in load environments: ", err)
+		}
+	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
 		log.Print("Error in load environments: ", err)
 		return
 	}
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", 
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("USER"), os.Getenv("PASSWORD"), os.Getenv("DBNAME"))
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -53,8 +66,8 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	query := `select name, balance from client
-		where id = $1`;
-	row, err := db.Query(query, client.ID);
+		where id = $1`
+	row, err := db.Query(query, client.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect values\n"))
@@ -62,7 +75,7 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row.Next()
-	err = row.Scan(&client.Name, &client.Balance);
+	err = row.Scan(&client.Name, &client.Balance)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
@@ -70,9 +83,8 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	str := fmt.Sprintf("Client ID: %d, Client name: %s, Client Balance: %f\n",
-			client.ID, client.Name, client.Balance)
+		client.ID, client.Name, client.Balance)
 	w.Write([]byte(str))
-
 
 	query = `select q.name, q.cost 
 		from quest as q inner join complete_quests as cq
@@ -88,8 +100,8 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	type getInfoStruct struct {
-		QuestName  string
-		Cost       float32
+		QuestName string
+		Cost      float32
 	}
 
 	result := []getInfoStruct{}
@@ -109,10 +121,10 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	for _, el := range result {
 		str := fmt.Sprintf("Quest name: %s, Quest cost: %f\n",
-			el.QuestName, el.Cost);
-		w.Write([]byte(str));
+			el.QuestName, el.Cost)
+		w.Write([]byte(str))
 	}
 
-	log.Print("Rows affected: ", len(result));
-	w.Write([]byte("complete\n"));
+	log.Print("Rows affected: ", len(result))
+	w.Write([]byte("complete\n"))
 }

@@ -8,12 +8,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	env "github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-type AddClient struct {}
+type AddClient struct{}
 
 func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	raw, err := io.ReadAll(r.Body)
@@ -26,21 +27,27 @@ func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var client Client
 	err = json.Unmarshal(raw, &client)
-	if err != nil {
+	if err != nil || !strings.Contains(string(raw), "name") || !strings.Contains(string(raw), "balance") {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect data\n"))
-		log.Print("Error in unmarshalling client: ", err)
+		if err != nil {
+			log.Print("Error in unmarshalling client: ", err)
+		} else {
+			log.Print("Error in unmarshalling client: ", "incorrect json")
+		}
 		return
 	}
 
-	err = env.Load("./.env");
+	err = env.Load(".env")
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in load environments: ", err)
-		return
+		err = env.Load("../.env") // чтобы работали тесты
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("unexpected error\n"))
+			log.Print("Error in load environments: ", err)
+		}
 	}
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", 
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("USER"), os.Getenv("PASSWORD"), os.Getenv("DBNAME"))
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -52,7 +59,7 @@ func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	query := `insert into client (name, balance) 
-		values ($1, $2)`;
+		values ($1, $2)`
 	result, err := db.Exec(query,
 		client.Name, client.Balance)
 	if err != nil {
