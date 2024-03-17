@@ -14,3 +14,13 @@ git clone https://github.com/Phund4/testtaskvk_golang.git
 go run main.go
 ```
 7. Сервер должен запуститься.
+8. Для запуска тестов команда
+```bash
+go test <директория client или quest, где находятся тесты>
+```
+
+URL для запросов:
+1.http://localhost:8080/addclient
+2.http://localhost:8080/addquest
+3.http://localhost:8080/completequest
+4.http://localhost:8080/getclientinfo
