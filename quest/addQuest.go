@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	rabbit "github.com/Phund4/testtaskvk_golang/rabbit/RabbitTest"
 	env "github.com/joho/godotenv"
 
 	_ "github.com/lib/pq"
@@ -22,7 +23,7 @@ func (addQuest *AddQuest) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in add quest: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in add quest: %s", err.Error()))
 		return
 	}
 
@@ -32,9 +33,9 @@ func (addQuest *AddQuest) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect data\n"))
 		if err != nil {
-			log.Print("Error in unmarshalling quest: ", err)
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in unmarshalling quest: %s", err.Error()))
 		} else {
-			log.Print("Error in unmarshalling quest: ", "incorrect json")
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in unmarshalling quest: %s", "incorrect json"))
 		}
 
 		return
@@ -46,14 +47,8 @@ func (addQuest *AddQuest) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("unexpected error\n"))
-			log.Print("Error in load environments: ", err)
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in load environments: %s", err.Error()))
 		}
-	}
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in load environments: ", err)
-		return
 	}
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("USER"), os.Getenv("PASSWORD"), os.Getenv("DBNAME"))
@@ -61,7 +56,7 @@ func (addQuest *AddQuest) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in connection to database: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in connection to database: %s", err.Error()))
 		return
 	}
 	defer db.Close()
@@ -73,7 +68,7 @@ func (addQuest *AddQuest) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect values\n"))
-		log.Print("Error in insert data quest: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in insert data quest: %s", err.Error()))
 		return
 	}
 
@@ -81,7 +76,7 @@ func (addQuest *AddQuest) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in response: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in response: %s", err.Error()))
 		return
 	}
 

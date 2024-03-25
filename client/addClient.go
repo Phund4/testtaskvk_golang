@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 
 	env "github.com/joho/godotenv"
+	rabbit "github.com/Phund4/testtaskvk_golang/rabbit/RabbitTest"
 	_ "github.com/lib/pq"
 )
 
@@ -21,7 +21,7 @@ func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in add client: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in add client: %s", err.Error()))
 		return
 	}
 
@@ -31,9 +31,9 @@ func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect data\n"))
 		if err != nil {
-			log.Print("Error in unmarshalling client: ", err)
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in unmarshalling client: %s", err.Error()))
 		} else {
-			log.Print("Error in unmarshalling client: ", "incorrect json")
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in unmarshalling client: %s", "incorrect json"))
 		}
 		return
 	}
@@ -44,7 +44,7 @@ func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("unexpected error\n"))
-			log.Print("Error in load environments: ", err)
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in load environments: %s", err.Error()))
 		}
 	}
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
@@ -53,7 +53,7 @@ func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in connection to database: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in connection to database: %s", err.Error()))
 		return
 	}
 	defer db.Close()
@@ -65,7 +65,7 @@ func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect values\n"))
-		log.Print("Error in insert data client: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in insert data client: %s", err.Error()))
 		return
 	}
 
@@ -73,11 +73,11 @@ func (addClient *AddClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in response: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in response: %s", err.Error()))
 		return
 	}
 
-	log.Print("Rows affected: ", num)
+	rabbit.SendRabbitMessage(fmt.Sprintf("Rows affected: %v", num))
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("complete\n"))
 }

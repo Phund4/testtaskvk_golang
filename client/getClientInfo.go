@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	rabbit "github.com/Phund4/testtaskvk_golang/rabbit/RabbitTest"
 	env "github.com/joho/godotenv"
 
 	_ "github.com/lib/pq"
@@ -22,7 +23,7 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in get info client: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in get info client: %s", err.Error()))
 		return
 	}
 
@@ -32,9 +33,9 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect data\n"))
 		if err != nil {
-			log.Print("Error in unmarshalling client: ", err)
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in unmarshalling client: %s", err.Error()))
 		} else {
-			log.Print("Error in unmarshalling client: ", "incorrect json")
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in unmarshalling client: %s", "incorrect json"))
 		}
 		return
 	}
@@ -45,14 +46,8 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("unexpected error\n"))
-			log.Print("Error in load environments: ", err)
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in load environments: %s", err.Error()))
 		}
-	}
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in load environments: ", err)
-		return
 	}
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("USER"), os.Getenv("PASSWORD"), os.Getenv("DBNAME"))
@@ -60,7 +55,7 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in connection to database: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in connection to database: %s", err.Error()))
 		return
 	}
 	defer db.Close()
@@ -71,7 +66,7 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect values\n"))
-		log.Print("Error in get info client: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in get info client: %s", err.Error()))
 		return
 	}
 	row.Next()
@@ -79,7 +74,7 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("unexpected error\n"))
-		log.Print("Error in response: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in response: %s", err.Error()))
 		return
 	}
 	str := fmt.Sprintf("Client ID: %d, Client name: %s, Client Balance: %f\n",
@@ -94,7 +89,7 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("incorrect values\n"))
-		log.Print("Error in get info client: ", err)
+		rabbit.SendRabbitMessage(fmt.Sprintf("Error in get info client: %s", err.Error()))
 		return
 	}
 	defer rows.Close()
@@ -112,7 +107,7 @@ func (*GetClientInfo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("unexpected error\n"))
-			log.Print("Error in response: ", err)
+			rabbit.SendRabbitMessage(fmt.Sprintf("Error in response: %s", err.Error()))
 			return
 		}
 
