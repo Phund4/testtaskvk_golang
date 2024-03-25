@@ -22,7 +22,14 @@ go run main.go
 ```bash
 go test [директория client или quest, где находятся тесты]
 ```
-
+9. Для запуска RabbitMQ сперва установить и запустить контейнер с Rabbit:
+```bash
+docker run -d --hostname my-rabbit --name some-rabbit -p 15672:15672 -p 5672:5672 rabbitmq:3-management
+```
+10. Затем запустить из корня проекта брокер командой
+```bash
+go run rabbit/rabbit-consumer.go
+```
 URL для запросов:
 1.http://localhost:8080/addclient
 2.http://localhost:8080/addquest
