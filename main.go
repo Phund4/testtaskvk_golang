@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	log.Print("Hello world sample started.")
+	log.Print("Server started.")
 	r := mux.NewRouter()
 
 	r.Handle("/addclient", &client.AddClient{}).Methods("POST").Headers("Content-Type", "application/json");

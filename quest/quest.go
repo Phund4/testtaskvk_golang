@@ -3,7 +3,7 @@ package quest
 import ()
 
 type Quest struct {
-	Id   int     `json:"id"`
+	ID   int     `json:"quest_id"`
 	Name string  `json:"name"`
 	Cost float32 `json:"cost"`
 }
